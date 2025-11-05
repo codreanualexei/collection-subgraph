@@ -1,0 +1,26 @@
+type Account @entity
+{
+  id:                           ID!
+}
+
+type Listing @entity
+{
+  id:            ID!
+  listingId:     BigInt!         # on-chain listing id
+  seller:        Account!        @link # relation to Account by id
+  nft:           Bytes!          # contract address of the NFT collection
+  tokenId:       BigInt!
+  price:         BigInt!
+  active:        Boolean!
+  buyer:         Account         # set when purchased
+  created:       BigInt!
+  updated:       BigInt!
+  purchasedAt:   BigInt          # timestamp when purchased
+  transaction:   Bytes!
+  blockNumber:   BigInt!
+  # Purchase details (from Purchased event)
+  royaltyReceiver: Bytes         # address that received royalty
+  royaltyAmount:   BigInt         # amount paid as royalty
+  feeAmount:       BigInt         # marketplace fee amount
+  sellerAmount:    BigInt         # amount received by seller
+}

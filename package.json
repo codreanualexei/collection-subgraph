@@ -1,0 +1,37 @@
+{
+  "name": "marketplace-subgraph",
+  "license": "UNLICENSED",
+    "config": {
+      "amoy": {
+        "version": "v1.3.2"
+      },
+    "polygon": {
+      "version": "latest"
+    }
+  },
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "prepare:amoy": "mustache config/marketplace.amoy.json subgraph.template.yaml > subgraph.yaml",
+    "prepare:polygon": "mustache config/marketplace.polygon.json subgraph.template.yaml > subgraph.yaml",
+    "_get-amoy-version": "node -p \"require('./package.json').config.amoy.version\"",
+    "_get-polygon-version": "node -p \"require('./package.json').config.polygon.version\"",
+    "deploy:amoy": "yarn prepare:amoy && yarn codegen && yarn build && node -e \"const pkg = require('./package.json'); const {execSync} = require('child_process'); const version = pkg.config.amoy.version; const cmd = 'goldsky subgraph deploy marketplace-amoy/' + version; try { execSync(cmd, {stdio: 'inherit'}); } catch(e) { if (e.status === 1) { console.log('\\n⚠️  Content hash matches existing deployment.'); console.log('   Finding latest version to update...'); try { const listOutput = execSync('goldsky subgraph list marketplace-amoy', {encoding: 'utf8'}); const versions = listOutput.match(/marketplace-amoy\\/(v[\\d.]+)/g) || []; if (versions.length > 0) { const latestVersion = versions[versions.length - 1].split('/')[1]; console.log('   Updating ' + latestVersion + ' instead...'); execSync('goldsky subgraph update marketplace-amoy/' + latestVersion, {stdio: 'inherit'}); } else { throw new Error('No versions found'); } } catch(updateErr) { console.log('\\n❌ Could not find existing version to update.'); console.log('   Make code changes to create a new version.'); process.exit(1); } } else { throw e; } }\"",
+    "update:amoy": "yarn prepare:amoy && yarn codegen && yarn build && node -e \"const pkg = require('./package.json'); require('child_process').execSync('goldsky subgraph update marketplace-amoy/' + pkg.config.amoy.version, {stdio: 'inherit'})\"",
+    "deploy:polygon": "yarn prepare:polygon && yarn codegen && yarn build && node -e \"const pkg = require('./package.json'); const version = pkg.config.polygon.version; const cmd = 'goldsky subgraph deploy marketplace-polygon/' + version; try { require('child_process').execSync(cmd, {stdio: 'inherit'}); } catch(e) { if (e.status === 1) { console.log('\\nDeployment exists, updating instead...'); require('child_process').execSync('goldsky subgraph update marketplace-polygon/' + version, {stdio: 'inherit'}); } else { throw e; } }\"",
+    "update:polygon": "yarn prepare:polygon && yarn codegen && yarn build && node -e \"const pkg = require('./package.json'); require('child_process').execSync('goldsky subgraph update marketplace-polygon/' + pkg.config.polygon.version, {stdio: 'inherit'})\"",
+    "deploy-full:amoy": "yarn deploy:amoy",
+    "deploy-full:polygon": "yarn deploy:polygon",
+    "create-local": "graph create --node http://localhost:8020/ YOUR_PROJECT/marketplace",
+    "remove-local": "graph remove --node http://localhost:8020/ YOUR_PROJECT/marketplace",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 YOUR_PROJECT/marketplace"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.51.0",
+    "@graphprotocol/graph-ts": "0.31.0"
+  },
+  "devDependencies": {
+    "mustache": "^4.0.1"
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+}
