@@ -1,34 +1,101 @@
 specVersion: 0.0.4
-description: Marketplace Subgraph - Active Listings API
-repository: https://github.com/poap-xyz/poap-mainnet-subgraph
+description: StrDomainsNFT Subgraph - Track NFTs, Royalties, and Sales
 schema:
   file: ./schema.graphql
+
 dataSources:
   - kind: ethereum/contract
-    name: Marketplace
+    name: StrDomainsNFT
     network: polygon-amoy
     source:
-      address: "0xaaa7CCA80d0Fc5c06c216CBC012681084dF8AB43"
-      abi: Marketplace
-      startBlock: 27000000
+      address: "0xedF14035988358667525d3f4Ccc05b32ca83e1EE"
+      abi: StrDomainsNFT
+      startBlock: 28639000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
-        - Listing
         - Account
+        - Token
+        - RoyaltySplitter
+        - Sale
+        - Transfer
+        - Contract
       abis:
-        - name: Marketplace
-          file: ./abis/Marketplace.json
+        - name: StrDomainsNFT
+          file: ./abis/StrDomainsNFT.json
       eventHandlers:
-        - event: Listed(indexed uint256,indexed address,indexed address,uint256,uint256)
-          handler: handleListed
-        - event: ListingUpdated(indexed uint256,uint256)
-          handler: handleListingUpdated
-        - event: ListingCanceled(indexed uint256)
-          handler: handleListingCanceled
-        - event: Purchased(indexed uint256,indexed address,uint256,address,uint256,uint256,uint256)
-          handler: handlePurchased
+        - event: Minted(indexed uint256,indexed address,indexed address,string)
+          handler: handleMinted
+        - event: SaleRecorded(indexed uint256,uint256,indexed address,uint64)
+          handler: handleSaleRecorded
+        - event: TokenSplitterSet(indexed uint256,indexed address,uint96)
+          handler: handleTokenSplitterSet
+        - event: Transfer(indexed address,indexed address,indexed uint256)
+          handler: handleTransfer
+        - event: TreasuryUpdated(indexed address)
+          handler: handleTreasuryUpdated
+        - event: DefaultRoyaltyUpdated(indexed address,uint96)
+          handler: handleDefaultRoyaltyUpdated
+        - event: SplitterFactoryUpdated(indexed address)
+          handler: handleSplitterFactoryUpdated
       file: ./src/mapping.ts
 
+  - kind: ethereum/contract
+    name: RoyaltySplitterFactory
+    network: polygon-amoy
+    source:
+      address: "0x7a172C19dAa156227fC316046DEDD8491965E835"
+      abi: RoyaltySplitterFactory
+      startBlock: 28639000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - RoyaltySplitter
+      abis:
+        - name: RoyaltySplitterFactory
+          file: ./abis/RoyaltySplitterFactory.json
+        - name: RoyaltySplitter
+          file: ./abis/RoyaltySplitter.json
+      eventHandlers:
+        - event: SplitterCreated(indexed address,indexed address,indexed address,uint16,uint16)
+          handler: handleSplitterCreated
+      file: ./src/mapping.ts
+
+templates:
+  - kind: ethereum/contract
+    name: RoyaltySplitter
+    network: polygon-amoy
+    source:
+      abi: RoyaltySplitter
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - RoyaltySplitter
+        - RoyaltyReceived
+        - RoyaltyTokenReceived
+        - RoyaltyWithdraw
+        - RoyaltyTokenWithdraw
+        - RoyaltyBalance
+      abis:
+        - name: RoyaltySplitter
+          file: ./abis/RoyaltySplitter.json
+      eventHandlers:
+        - event: Initialized(indexed address,indexed address,uint16,uint16)
+          handler: handleRoyaltySplitterInitialized
+        - event: SplitsUpdated(uint16,uint16)
+          handler: handleSplitsUpdated
+        - event: Received(indexed address,uint256)
+          handler: handleRoyaltyReceived
+        - event: TokenReceived(indexed address,indexed address,uint256)
+          handler: handleRoyaltyTokenReceived
+        - event: Withdraw(indexed address,uint256)
+          handler: handleRoyaltyWithdraw
+        - event: WithdrawToken(indexed address,indexed address,uint256)
+          handler: handleRoyaltyTokenWithdraw
+      file: ./src/mapping.ts

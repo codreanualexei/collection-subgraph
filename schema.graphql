@@ -1,26 +1,141 @@
-type Account @entity
-{
-  id:                           ID!
+# Schema for StrDomainsNFT Subgraph
+
+type Account @entity {
+  id: ID! # address
+  tokens: [Token!]! @derivedFrom(field: "owner")
+  createdTokens: [Token!]! @derivedFrom(field: "creator")
+  salesAsBuyer: [Sale!]! @derivedFrom(field: "buyer")
 }
 
-type Listing @entity
-{
-  id:            ID!
-  listingId:     BigInt!         # on-chain listing id
-  seller:        Account!        @link # relation to Account by id
-  nft:           Bytes!          # contract address of the NFT collection
-  tokenId:       BigInt!
-  price:         BigInt!
-  active:        Boolean!
-  buyer:         Account         # set when purchased
-  created:       BigInt!
-  updated:       BigInt!
-  purchasedAt:   BigInt          # timestamp when purchased
-  transaction:   Bytes!
-  blockNumber:   BigInt!
-  # Purchase details (from Purchased event)
-  royaltyReceiver: Bytes         # address that received royalty
-  royaltyAmount:   BigInt         # amount paid as royalty
-  feeAmount:       BigInt         # marketplace fee amount
-  sellerAmount:    BigInt         # amount received by seller
+type Token @entity {
+  id: ID! # tokenId
+  tokenId: BigInt!
+  owner: Account!
+  creator: Account!
+  tokenURI: String!
+  domainName: String!
+  mintedAt: BigInt!
+  
+  # Royalty information
+  royaltySplitter: RoyaltySplitter
+  royaltyBps: BigInt
+  
+  # Sale information
+  lastSalePrice: BigInt
+  lastSaleAt: BigInt
+  sales: [Sale!]! @derivedFrom(field: "token")
+  
+  # Transfer history
+  transfers: [Transfer!]! @derivedFrom(field: "token")
+  
+  # Metadata
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type RoyaltySplitter @entity {
+  id: ID! # splitter address
+  address: Bytes!
+  creator: Account!
+  treasury: Account!
+  creatorBps: BigInt!
+  treasuryBps: BigInt!
+  
+  # Associated token
+  token: Token
+  
+  # Royalty events
+  received: [RoyaltyReceived!]! @derivedFrom(field: "splitter")
+  tokenReceived: [RoyaltyTokenReceived!]! @derivedFrom(field: "splitter")
+  withdrawals: [RoyaltyWithdraw!]! @derivedFrom(field: "splitter")
+  tokenWithdrawals: [RoyaltyTokenWithdraw!]! @derivedFrom(field: "splitter")
+  
+  # Balances
+  ethBalance: BigInt!
+  creatorEthBalance: BigInt!
+  treasuryEthBalance: BigInt!
+  erc20Balances: [RoyaltyBalance!]! @derivedFrom(field: "splitter")
+  
+  createdAt: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type RoyaltyBalance @entity {
+  id: ID! # splitter-token address
+  splitter: RoyaltySplitter!
+  token: Bytes! # ERC20 token address
+  creatorBalance: BigInt!
+  treasuryBalance: BigInt!
+}
+
+type Sale @entity {
+  id: ID! # transactionHash-logIndex
+  token: Token!
+  buyer: Account!
+  price: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type Transfer @entity {
+  id: ID! # transactionHash-logIndex
+  token: Token!
+  from: Account!
+  to: Account!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type RoyaltyReceived @entity {
+  id: ID! # transactionHash-logIndex
+  splitter: RoyaltySplitter!
+  from: Bytes!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type RoyaltyTokenReceived @entity {
+  id: ID! # transactionHash-logIndex
+  splitter: RoyaltySplitter!
+  token: Bytes! # ERC20 token address
+  from: Bytes!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type RoyaltyWithdraw @entity {
+  id: ID! # transactionHash-logIndex
+  splitter: RoyaltySplitter!
+  to: Bytes!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type RoyaltyTokenWithdraw @entity {
+  id: ID! # transactionHash-logIndex
+  splitter: RoyaltySplitter!
+  token: Bytes! # ERC20 token address
+  to: Bytes!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+# Global contract state
+type Contract @entity {
+  id: ID! # contract address
+  treasury: Bytes!
+  splitterFactory: Bytes!
+  defaultRoyaltyBps: BigInt!
+  lastId: BigInt!
 }
