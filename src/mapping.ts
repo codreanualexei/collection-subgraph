@@ -96,7 +96,7 @@ export function handleMinted(event: MintedEvent): void {
   token.owner = toAccount.id
   token.creator = creatorAccount.id
   token.tokenURI = event.params.tokenURI
-  token.domainName = '' // Domain name not available in event, would need to query contract
+  token.domainName = event.params.domain
   token.mintedAt = event.block.timestamp
   token.lastSalePrice = null
   token.lastSaleAt = null
@@ -109,10 +109,6 @@ export function handleMinted(event: MintedEvent): void {
   if (!lastIdResult.reverted) {
     contract.lastId = lastIdResult.value
   }
-  
-  // Note: Domain name is not available in the Minted event
-  // It would need to be queried from the contract separately if needed
-  // For now, we'll leave it empty and it can be updated later if needed
   
   contract.save()
   token.save()

@@ -26,7 +26,7 @@ dataSources:
         - name: StrDomainsNFT
           file: ./abis/StrDomainsNFT.json
       eventHandlers:
-        - event: Minted(indexed uint256,indexed address,indexed address,string)
+        - event: Minted(indexed uint256,indexed address,indexed address,string,string)
           handler: handleMinted
         - event: SaleRecorded(indexed uint256,uint256,indexed address,uint64)
           handler: handleSaleRecorded
