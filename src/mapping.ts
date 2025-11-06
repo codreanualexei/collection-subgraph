@@ -33,6 +33,16 @@ import {
   RoyaltySplitter as RoyaltySplitterContract,
 } from '../generated/templates/RoyaltySplitter/RoyaltySplitter'
 
+// Marketplace events
+import {
+  Listed as ListedEvent,
+  ListingUpdated as ListingUpdatedEvent,
+  ListingCanceled as ListingCanceledEvent,
+  Purchased as PurchasedEvent,
+  FeeWithdrawn as FeeWithdrawnEvent,
+  Marketplace as MarketplaceContract,
+} from '../generated/Marketplace/Marketplace'
+
 // Schema entities
 import {
   Account,
@@ -46,6 +56,10 @@ import {
   RoyaltyTokenWithdraw,
   RoyaltyBalance,
   Contract,
+  Marketplace,
+  Listing,
+  Purchase,
+  FeeWithdrawal,
 } from '../generated/schema'
 
 import { RoyaltySplitter as RoyaltySplitterTemplate } from '../generated/templates'
@@ -459,4 +473,227 @@ export function handleRoyaltyTokenWithdraw(event: RoyaltyTokenWithdrawEvent): vo
   withdraw.save()
   balance.save()
   splitter.save()
+}
+
+// ============ Marketplace Event Handlers ============
+
+// Helper function to ensure Marketplace exists
+function ensureMarketplace(marketplaceAddress: Address): Marketplace {
+  let marketplaceId = marketplaceAddress.toHexString()
+  let marketplace = Marketplace.load(marketplaceId)
+  if (marketplace == null) {
+    marketplace = new Marketplace(marketplaceId)
+    let contractInstance = MarketplaceContract.bind(marketplaceAddress)
+    
+    // Load initial state from contract
+    let feeTreasuryResult = contractInstance.try_feeTreasury()
+    let feeBpsResult = contractInstance.try_marketplaceFeeBps()
+    let accruedFeesResult = contractInstance.try_accruedFees()
+    let lastListingIdResult = contractInstance.try_lastListingId()
+    
+    if (!feeTreasuryResult.reverted) {
+      marketplace.feeTreasury = feeTreasuryResult.value
+    } else {
+      marketplace.feeTreasury = Bytes.fromHexString('0x0000000000000000000000000000000000000000')
+    }
+    
+    if (!feeBpsResult.reverted) {
+      marketplace.marketplaceFeeBps = BigInt.fromI32(feeBpsResult.value.toI32())
+    } else {
+      marketplace.marketplaceFeeBps = BigInt.fromI32(0)
+    }
+    
+    if (!accruedFeesResult.reverted) {
+      marketplace.accruedFees = accruedFeesResult.value
+    } else {
+      marketplace.accruedFees = BigInt.fromI32(0)
+    }
+    
+    if (!lastListingIdResult.reverted) {
+      marketplace.lastListingId = lastListingIdResult.value
+    } else {
+      marketplace.lastListingId = BigInt.fromI32(0)
+    }
+    
+    marketplace.createdAt = BigInt.fromI32(0)
+    marketplace.blockNumber = BigInt.fromI32(0)
+    marketplace.transactionHash = Bytes.fromHexString('0x0000000000000000000000000000000000000000000000000000000000000000')
+    marketplace.save()
+  }
+  return marketplace as Marketplace
+}
+
+export function handleListed(event: ListedEvent): void {
+  let marketplaceAddress = event.address
+  let marketplace = ensureMarketplace(marketplaceAddress)
+  
+  // Update marketplace state
+  let contractInstance = MarketplaceContract.bind(marketplaceAddress)
+  let lastListingIdResult = contractInstance.try_lastListingId()
+  if (!lastListingIdResult.reverted) {
+    marketplace.lastListingId = lastListingIdResult.value
+  }
+  marketplace.blockNumber = event.block.number
+  marketplace.transactionHash = event.transaction.hash
+  
+  let listingId = event.params.listingId
+  let listingEntityId = listingId.toString()
+  let seller = event.params.seller
+  let nftAddress = event.params.nft
+  let tokenId = event.params.tokenId
+  let price = event.params.price
+  
+  // Ensure accounts exist
+  let sellerAccount = ensureAccount(seller)
+  
+  // Load or create token entity
+  let tokenEntityId = tokenId.toString()
+  let token = Token.load(tokenEntityId)
+  if (token == null) {
+    // Token might not exist yet, create a minimal one
+    // This shouldn't happen in practice, but handle it gracefully
+    return
+  }
+  
+  // Create listing entity
+  let listing = new Listing(listingEntityId)
+  listing.listingId = listingId
+  listing.marketplace = marketplace.id
+  listing.seller = sellerAccount.id
+  listing.nft = nftAddress
+  listing.token = token.id
+  listing.tokenId = tokenId
+  listing.price = price
+  listing.active = true
+  listing.createdAt = event.block.timestamp
+  listing.updatedAt = null
+  listing.canceledAt = null
+  listing.blockNumber = event.block.number
+  listing.transactionHash = event.transaction.hash
+  
+  listing.save()
+  marketplace.save()
+}
+
+export function handleListingUpdated(event: ListingUpdatedEvent): void {
+  let listingId = event.params.listingId
+  let listingEntityId = listingId.toString()
+  let newPrice = event.params.newPrice
+  
+  let listing = Listing.load(listingEntityId)
+  if (listing == null) {
+    return
+  }
+  
+  listing.price = newPrice
+  listing.updatedAt = event.block.timestamp
+  
+  listing.save()
+}
+
+export function handleListingCanceled(event: ListingCanceledEvent): void {
+  let listingId = event.params.listingId
+  let listingEntityId = listingId.toString()
+  
+  let listing = Listing.load(listingEntityId)
+  if (listing == null) {
+    return
+  }
+  
+  listing.active = false
+  listing.canceledAt = event.block.timestamp
+  
+  listing.save()
+}
+
+export function handlePurchased(event: PurchasedEvent): void {
+  let marketplaceAddress = event.address
+  let marketplace = ensureMarketplace(marketplaceAddress)
+  
+  // Update marketplace accrued fees
+  let contractInstance = MarketplaceContract.bind(marketplaceAddress)
+  let accruedFeesResult = contractInstance.try_accruedFees()
+  if (!accruedFeesResult.reverted) {
+    marketplace.accruedFees = accruedFeesResult.value
+  }
+  marketplace.blockNumber = event.block.number
+  marketplace.transactionHash = event.transaction.hash
+  
+  let listingId = event.params.listingId
+  let listingEntityId = listingId.toString()
+  let buyer = event.params.buyer
+  let price = event.params.price
+  let royaltyReceiver = event.params.royaltyReceiver
+  let royaltyAmount = event.params.royaltyAmount
+  let feeAmount = event.params.feeAmount
+  let sellerAmount = event.params.sellerAmount
+  
+  // Load listing
+  let listing = Listing.load(listingEntityId)
+  if (listing == null) {
+    return
+  }
+  
+  // Mark listing as inactive
+  listing.active = false
+  
+  // Load token
+  let token = Token.load(listing.token)
+  if (token == null) {
+    return
+  }
+  
+  // Ensure buyer account exists
+  let buyerAccount = ensureAccount(buyer)
+  
+  // Create purchase entity
+  let purchaseId = event.transaction.hash.toHexString() + '-' + event.logIndex.toString()
+  let purchase = new Purchase(purchaseId)
+  purchase.marketplace = marketplace.id
+  purchase.listing = listing.id
+  purchase.listingId = listingId
+  purchase.buyer = buyerAccount.id
+  purchase.token = token.id
+  purchase.price = price
+  purchase.royaltyReceiver = royaltyReceiver
+  purchase.royaltyAmount = royaltyAmount
+  purchase.feeAmount = feeAmount
+  purchase.sellerAmount = sellerAmount
+  purchase.timestamp = event.block.timestamp
+  purchase.blockNumber = event.block.number
+  purchase.transactionHash = event.transaction.hash
+  
+  // Link purchase to listing
+  listing.purchase = purchase.id
+  
+  purchase.save()
+  listing.save()
+  marketplace.save()
+}
+
+export function handleFeeWithdrawn(event: FeeWithdrawnEvent): void {
+  let marketplaceAddress = event.address
+  let marketplace = ensureMarketplace(marketplaceAddress)
+  
+  // Update marketplace accrued fees
+  let contractInstance = MarketplaceContract.bind(marketplaceAddress)
+  let accruedFeesResult = contractInstance.try_accruedFees()
+  if (!accruedFeesResult.reverted) {
+    marketplace.accruedFees = accruedFeesResult.value
+  }
+  marketplace.blockNumber = event.block.number
+  marketplace.transactionHash = event.transaction.hash
+  
+  // Create fee withdrawal entity
+  let withdrawalId = event.transaction.hash.toHexString() + '-' + event.logIndex.toString()
+  let withdrawal = new FeeWithdrawal(withdrawalId)
+  withdrawal.marketplace = marketplace.id
+  withdrawal.to = event.params.to
+  withdrawal.amount = event.params.amount
+  withdrawal.timestamp = event.block.timestamp
+  withdrawal.blockNumber = event.block.number
+  withdrawal.transactionHash = event.transaction.hash
+  
+  withdrawal.save()
+  marketplace.save()
 }

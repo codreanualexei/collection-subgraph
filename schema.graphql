@@ -5,6 +5,8 @@ type Account @entity {
   tokens: [Token!]! @derivedFrom(field: "owner")
   createdTokens: [Token!]! @derivedFrom(field: "creator")
   salesAsBuyer: [Sale!]! @derivedFrom(field: "buyer")
+  listings: [Listing!]! @derivedFrom(field: "seller")
+  purchases: [Purchase!]! @derivedFrom(field: "buyer")
 }
 
 type Token @entity {
@@ -24,6 +26,9 @@ type Token @entity {
   lastSalePrice: BigInt
   lastSaleAt: BigInt
   sales: [Sale!]! @derivedFrom(field: "token")
+  
+  # Marketplace listings
+  listings: [Listing!]! @derivedFrom(field: "token")
   
   # Transfer history
   transfers: [Transfer!]! @derivedFrom(field: "token")
@@ -138,4 +143,70 @@ type Contract @entity {
   splitterFactory: Bytes!
   defaultRoyaltyBps: BigInt!
   lastId: BigInt!
+}
+
+# Marketplace contract state
+type Marketplace @entity {
+  id: ID! # marketplace address
+  feeTreasury: Bytes!
+  marketplaceFeeBps: BigInt!
+  accruedFees: BigInt!
+  lastListingId: BigInt!
+  
+  # Events
+  listings: [Listing!]! @derivedFrom(field: "marketplace")
+  purchases: [Purchase!]! @derivedFrom(field: "marketplace")
+  feeWithdrawals: [FeeWithdrawal!]! @derivedFrom(field: "marketplace")
+  
+  createdAt: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type Listing @entity {
+  id: ID! # listingId
+  listingId: BigInt!
+  marketplace: Marketplace!
+  seller: Account!
+  nft: Bytes! # NFT contract address
+  token: Token!
+  tokenId: BigInt!
+  price: BigInt!
+  active: Boolean!
+  
+  # Events
+  purchase: Purchase
+  
+  createdAt: BigInt!
+  updatedAt: BigInt
+  canceledAt: BigInt
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type Purchase @entity {
+  id: ID! # transactionHash-logIndex
+  marketplace: Marketplace!
+  listing: Listing!
+  listingId: BigInt!
+  buyer: Account!
+  token: Token!
+  price: BigInt!
+  royaltyReceiver: Bytes!
+  royaltyAmount: BigInt!
+  feeAmount: BigInt!
+  sellerAmount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type FeeWithdrawal @entity {
+  id: ID! # transactionHash-logIndex
+  marketplace: Marketplace!
+  to: Bytes!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
 }

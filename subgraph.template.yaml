@@ -65,6 +65,42 @@ dataSources:
           handler: handleSplitterCreated
       file: ./src/mapping.ts
 
+  - kind: ethereum/contract
+    name: Marketplace
+    network: {{ network }}
+    source:
+      address: "{{ marketplaceAddress }}"
+      abi: Marketplace
+      startBlock: {{ startBlock }}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - Marketplace
+        - Listing
+        - Purchase
+        - FeeWithdrawal
+        - Account
+        - Token
+      abis:
+        - name: Marketplace
+          file: ./abis/Marketplace.json
+        - name: StrDomainsNFT
+          file: ./abis/StrDomainsNFT.json
+      eventHandlers:
+        - event: Listed(indexed uint256,indexed address,indexed address,uint256,uint256)
+          handler: handleListed
+        - event: ListingUpdated(indexed uint256,uint256)
+          handler: handleListingUpdated
+        - event: ListingCanceled(indexed uint256)
+          handler: handleListingCanceled
+        - event: Purchased(indexed uint256,indexed address,uint256,address,uint256,uint256,uint256)
+          handler: handlePurchased
+        - event: FeeWithdrawn(indexed address,uint256)
+          handler: handleFeeWithdrawn
+      file: ./src/mapping.ts
+
 templates:
   - kind: ethereum/contract
     name: RoyaltySplitter

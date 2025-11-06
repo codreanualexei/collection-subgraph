@@ -3,7 +3,7 @@
   "license": "UNLICENSED",
     "config": {
       "amoy": {
-        "version": "v1.4.2"
+        "version": "v1.4.3"
       },
     "polygon": {
       "version": "latest"

@@ -2,6 +2,7 @@
   "network": "polygon",
   "nftAddress": "0xYOUR_NFT_CONTRACT_ADDRESS_HERE",
   "splitterFactoryAddress": "0xYOUR_SPLITTER_FACTORY_ADDRESS_HERE",
+  "marketplaceAddress": "0xYOUR_MARKETPLACE_ADDRESS_HERE",
   "startBlock": 0
 }
 

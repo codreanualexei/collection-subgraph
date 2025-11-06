@@ -1,7 +1,8 @@
 {
   "network": "polygon-amoy",
-  "nftAddress": "0xedF14035988358667525d3f4Ccc05b32ca83e1EE",
-  "splitterFactoryAddress": "0x7a172C19dAa156227fC316046DEDD8491965E835",
-  "startBlock": 28639000
+  "nftAddress": "0x8B10a2FD1ee3ff7b605daF93c202ffD37D5f862C", 
+  "splitterFactoryAddress": "0x470AD650D5953627C5a6897e4ddC0be27184f696",
+  "marketplaceAddress": "0x8b984C13911e8aA44747cF838EA7c2CfC215b1d0",
+  "startBlock": 28678798
 }
 
